@@ -13,6 +13,7 @@
     --concurrency 并发数（默认 8）
     --retries 每个详情页失败重试次数（默认 3）
     --limit 只抓取前 N 个详情页（调试用）
+    --no-mj 取数后不自动转换 mj_gxb（默认自动转换）
 
 流程：
     1. 打开公告页（第一层入口），从 iframe 中定位批次列表页；
@@ -20,7 +21,9 @@
        分页拉取第一层列表（企业名称 / 产品商标 / 产品名称 / 产品型号 + 详情页链接）；
     3. 并发抓取第二层详情页，解析其中多个表格（基本信息表、技术参数表、
        底盘表、发动机表），统一拼装成固定的 52 列格式；
-    4. 自动重试失败的请求，输出前去重（按详情页链接），保证结果稳定、不重复。
+    4. 自动重试失败的请求，输出前去重（按详情页链接），保证结果稳定、不重复；
+    5. 写出 miit_gxb_<批次>.csv 后，自动转换为 mj_gxb_<批次>.csv
+       （48 列标准格式，全引号 + 无 BOM，与数据库导出 mj_gxb_409 一致）。
 """
 
 import argparse
@@ -433,6 +436,7 @@ def run(argv=None):
     parser.add_argument("--concurrency", type=int, default=8, help="并发数（默认 8）")
     parser.add_argument("--retries", type=int, default=3, help="失败重试次数（默认 3）")
     parser.add_argument("--limit", type=int, default=0, help="只抓取前 N 条详情（调试用，0 表示全部）")
+    parser.add_argument("--no-mj", action="store_true", help="取数后不自动转换 mj_gxb")
     args = parser.parse_args(argv)
 
     article_url = args.url or URL
@@ -588,6 +592,21 @@ def run(argv=None):
         for item, v in results:
             if v is None:
                 logger.warning("  %s", item["url"])
+
+    # ================= 自动转换：miit_gxb -> mj_gxb =================
+    if args.no_mj:
+        logger.info("已通过 --no-mj 跳过 mj_gxb 自动转换")
+    elif not batch:
+        logger.warning("未识别批次号，跳过 mj_gxb 自动转换")
+    else:
+        try:
+            from mj_convert import convert_csv
+            mj_path = os.path.join(OUTPUT_DIR, "mj_gxb_%s.csv" % batch)
+            n_mj = convert_csv(out_path, mj_path, batch)
+            logger.info("已自动转换 mj_gxb：%d 行 -> %s", n_mj, mj_path)
+        except Exception as exc:  # noqa: BLE001
+            # 转换失败不影响 miit 原始输出，仅告警
+            logger.warning("mj_gxb 自动转换失败（miit 原始输出不受影响）：%s", exc)
     return 0
 
 
