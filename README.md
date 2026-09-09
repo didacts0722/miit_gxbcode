@@ -6,8 +6,8 @@
 
 | 文件 | 说明 |
 |---|---|
-| `output/miit_gxb_<批次>.csv` | 爬虫原始产出，52 列，UTF-8-SIG（带 BOM，Excel 直接打开不乱码） |
-| `output/mj_gxb_<批次>.csv` | 转换后标准格式，48 列，全字段双引号 + 无 BOM + CRLF，与库内 `mj_gxb_409` 导出格式一致 |
+| `output/miit_gxb/miit_gxb_<批次>.csv` | 爬虫原始产出（convert 前），52 列，UTF-8-SIG（带 BOM，Excel 直接打开不乱码） |
+| `output/mj_gxb/mj_gxb_<批次>.csv` | 转换后标准格式（convert 后），48 列，全字段双引号 + 无 BOM + CRLF，与库内 `mj_gxb_409` 导出格式一致 |
 
 数据来源：工业和信息化部官网公告公示（https://www.miit.gov.cn ）。
 
@@ -17,10 +17,10 @@
 公告页 URL（某批次公示入口）
    │
    ▼
-[1] miit_crawler.py ──────────► output/miit_gxb_<批次>.csv   （52 列原始明细）
-   │                               │
-   │ （自动转换，除非 --no-mj）      ▼
-   └─────────────────► [2] mj_convert.convert_csv ──► output/mj_gxb_<批次>.csv（48 列标准格式）
+[1] miit_crawler.py ──────────► output/miit_gxb/miit_gxb_<批次>.csv（52 列原始明细）
+   │                                │
+   │ （自动转换，除非 --no-mj）       ▼
+   └──────────────────► [2] mj_convert.convert_csv ──► output/mj_gxb/mj_gxb_<批次>.csv（48 列标准格式）
 ```
 
 ## 快速开始
@@ -45,8 +45,8 @@ python miit_crawler.py https://www.miit.gov.cn/datainfo/cpgg/art/2026/art_389774
 
 产出：
 
-- `output/miit_gxb_411.csv`
-- `output/mj_gxb_411.csv`（自动转换；加 `--no-mj` 可跳过）
+- `output/miit_gxb/miit_gxb_411.csv`
+- `output/mj_gxb/mj_gxb_411.csv`（自动转换；加 `--no-mj` 可跳过）
 
 ### 2. 仅做格式转换（已有 miit 原始 CSV）
 
@@ -57,11 +57,11 @@ python convert_to_mj.py --batch 410  # 指定批次
 
 ### 3. 校验输出结构（本地调试）
 
-对照参考文件 `miit_gxb_409.csv` 检查表头一致 / 行宽 / 链接唯一 / 各列填充率等。该脚本用相对路径引用参考文件，需在 `output` 目录下运行：
+对照参考文件 `miit_gxb_409.csv` 检查表头一致 / 行宽 / 链接唯一 / 各列填充率等。该脚本用相对路径引用参考文件，需在 `output/miit_gxb` 目录下运行（参考文件 `miit_gxb_409.csv` 需自行放入该目录）：
 
 ```bash
-cd output
-python ../validate_output.py miit_gxb_411.csv
+cd output/miit_gxb
+python ../../validate_output.py miit_gxb_411.csv
 ```
 
 > `validate_output.py` 是本地调试脚本，已在 `.gitignore` 中排除，不随仓库提交。
@@ -111,11 +111,15 @@ miit_gxbcode/
 ├── requirements.txt
 ├── docs/运行简报.md      # 项目运行简报（主流程说明 + 更新记录）
 └── output/              # 抓取产物（数据文件，不入库）
-    ├── miit_gxb_<批次>.csv
-    └── mj_gxb_<批次>.csv
+    ├── miit_gxb/        # 爬虫原始 CSV（convert 前，52 列）
+    │   └── miit_gxb_<批次>.csv
+    └── mj_gxb/          # 转换后 CSV（convert 后，48 列）
+        └── mj_gxb_<批次>.csv
 ```
 
 ## 输出格式说明
+
+爬虫原始 CSV 写入 `output/miit_gxb/`，转换后 CSV 写入 `output/mj_gxb/`（convert 前/后分目录）。
 
 ### `miit_gxb_<批次>.csv`（52 列，UTF-8-SIG）
 
@@ -143,6 +147,7 @@ miit_gxbcode/
 
 ## 更新记录
 
+- **2026-09-09**：`output/` 按 convert 前/后拆分为 `miit_gxb/` 与 `mj_gxb/` 两个子目录；`miit_crawler.py` / `convert_to_mj.py` 默认路径、校验运行目录与本文档同步更新。
 - **2026-08-17**：新增「车辆识别代号」修缮逻辑（`revise_vin`），爬虫与转换共享；详见 `docs/运行简报.md`。
 - **2026-08-11**：爬虫取数后自动转换为 mj_gxb 格式，抽取共享转换模块 `mj_convert`。
 - **2026-08-11**：初始化仓库；`requirements.txt` 适配 Python 3.14（lxml 6.1.1）。

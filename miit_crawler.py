@@ -9,7 +9,7 @@
     例：python miit_crawler.py https://www.miit.gov.cn/datainfo/cpgg/art/2026/art_ec6e49c646f54746978e3f6ab8618639.html
 
 可选参数：
-    --output 指定输出 CSV 路径（默认输出到本脚本目录下 output/miit_gxb_<批次>.csv）
+    --output 指定输出 CSV 路径（默认输出到本脚本目录下 output/miit_gxb/miit_gxb_<批次>.csv）
     --concurrency 并发数（默认 8）
     --retries 每个详情页失败重试次数（默认 3）
     --limit 只抓取前 N 个详情页（调试用）
@@ -52,8 +52,10 @@ from mj_convert import revise_vin
 # 例：URL = "https://www.miit.gov.cn/datainfo/cpgg/art/2026/art_ec6e49c646f54746978e3f6ab8618639.html"
 URL = ""
 
-# 输出 CSV 存放目录（默认：本脚本所在目录下的 output 文件夹）
+# 输出目录（默认：本脚本所在目录下的 output；convert 前/后分开两个子目录）
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+MIIT_OUT_DIR = os.path.join(OUTPUT_DIR, "miit_gxb")  # 爬虫原始 CSV（convert 前）
+MJ_OUT_DIR = os.path.join(OUTPUT_DIR, "mj_gxb")      # 转换后 CSV（convert 后）
 
 BASE_URL = "https://www.miit.gov.cn"
 
@@ -436,7 +438,7 @@ def run(argv=None):
     )
     parser.add_argument("url", nargs="?", default="",
                         help="公告页 URL（也可在脚本顶部配置区 URL= 中填写）")
-    parser.add_argument("--output", help="输出 CSV 路径（默认 output/miit_gxb_<批次>.csv）")
+    parser.add_argument("--output", help="输出 CSV 路径（默认 output/miit_gxb/miit_gxb_<批次>.csv）")
     parser.add_argument("--concurrency", type=int, default=8, help="并发数（默认 8）")
     parser.add_argument("--retries", type=int, default=3, help="失败重试次数（默认 3）")
     parser.add_argument("--limit", type=int, default=0, help="只抓取前 N 条详情（调试用，0 表示全部）")
@@ -576,9 +578,9 @@ def run(argv=None):
         seen_urls.add(item["url"])
         out_rows.append(build_output_row(item, values))
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(MIIT_OUT_DIR, exist_ok=True)
     out_path = args.output or os.path.join(
-        OUTPUT_DIR,
+        MIIT_OUT_DIR,
         f"miit_gxb_{batch}.csv" if batch else "miit_gxb_output.csv",
     )
     # utf-8-sig：带 BOM，Excel 双击打开不乱码
@@ -605,7 +607,8 @@ def run(argv=None):
     else:
         try:
             from mj_convert import convert_csv
-            mj_path = os.path.join(OUTPUT_DIR, "mj_gxb_%s.csv" % batch)
+            os.makedirs(MJ_OUT_DIR, exist_ok=True)
+            mj_path = os.path.join(MJ_OUT_DIR, "mj_gxb_%s.csv" % batch)
             n_mj = convert_csv(out_path, mj_path, batch)
             logger.info("已自动转换 mj_gxb：%d 行 -> %s", n_mj, mj_path)
         except Exception as exc:  # noqa: BLE001
