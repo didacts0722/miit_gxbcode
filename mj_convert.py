@@ -11,6 +11,7 @@
 输出格式与数据库导出（mj_gxb_409）一致：全字段双引号 + 无 BOM + CRLF。
 """
 import csv
+import re
 
 # 输出列定义：(目标列名, 源列名)；src 为 None 表示该列置空；pici 由批次号填充
 MJ_COLUMNS = [
@@ -63,6 +64,15 @@ MJ_COLUMNS = [
     ("功率(kw)", "功率_kw"),
     ("油耗(L/100km)", "油耗"),
 ]
+
+
+# 修缮「车辆识别代号」：按连续 [字母数字×] 切段（保留 × 掩码），统一逗号分隔。
+# 空 / ' ' / '-'（无信息约定）输出空字符串。供 miit_crawler 与 mj_convert 复用。
+VIN_SEG_RE = re.compile(r"[A-Za-z0-9×]+")
+
+
+def revise_vin(value):
+    return ",".join(VIN_SEG_RE.findall(value or ""))
 
 
 def convert_csv(in_path, out_path, batch):

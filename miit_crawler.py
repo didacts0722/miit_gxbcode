@@ -42,6 +42,8 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
+from mj_convert import revise_vin
+
 # ==========================================================================
 # 配置区
 # ==========================================================================
@@ -407,6 +409,8 @@ def build_output_row(list_item, detail_values):
     for f in ("企业名称", "产品商标", "产品名称", "产品型号"):
         ordered[f] = list_item.get(f, "")
     ordered.update(detail_values or {})
+    # 修缮「车辆识别代号」：保留 × 掩码、正则切段、统一逗号分隔（miit_gxb 与 mj_gxb 同步干净）
+    ordered["车辆识别代号"] = revise_vin(ordered["车辆识别代号"])
     return [ordered[h] for h in CSV_HEADERS]
 
 
