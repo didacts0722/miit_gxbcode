@@ -72,7 +72,7 @@ python ../../validate_output.py miit_gxb_411.csv
 |---|---|
 | 1 | 打开公告页，从 iframe 定位批次列表页 |
 | 2 | 解析列表页数据接口 `queryData` + `unitUrl` |
-| 3 | 识别批次号（列表页 URL `xcpgs<数字>` 或公告页「第 N 批」） |
+| 3 | 识别批次号（公告页「第 N 批」→ 列表页标题 → 列表页 URL，URL 仅作兜底） |
 | 4 | 分页拉取第一层列表（企业名称 / 产品商标 / 产品名称 / 产品型号 + 详情链接） |
 | 5 | 并发抓取第二层详情页，解析 4 张表（基本信息 / 技术参数 / 底盘 / 发动机） |
 | 6 | 失败的详情页做 2 轮补抓重试 |
@@ -87,7 +87,7 @@ python ../../validate_output.py miit_gxb_411.csv
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `url`（位置参数） | 顶部配置区 `URL` | 公告页 URL，二者必填其一 |
-| `--output` | `output/miit_gxb_<批次>.csv` | 输出 CSV 路径 |
+| `--output` | `output/miit_gxb/miit_gxb_<批次>.csv` | 输出 CSV 路径 |
 | `--concurrency` | 8 | 详情页抓取并发数 |
 | `--retries` | 3 | 每个详情页失败重试次数 |
 | `--limit` | 0（全部） | 只抓前 N 条（调试用） |

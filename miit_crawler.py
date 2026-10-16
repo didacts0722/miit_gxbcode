@@ -297,6 +297,25 @@ def parse_list_rows(html):
     return rows
 
 
+def detect_batch(article_html, list_html, list_url):
+    """识别批次号，返回 (批次号, 来源说明)。
+
+    取值优先级（从权威到兜底）：公告页正文「第 N 批」→ 列表页标题「新产品公示 N」
+    → 列表页 URL 的 xcpgs<数字>。顺序不可颠倒：URL 形如
+    .../xcpgs412156gfgy/index.html，xcpgs 后紧跟的数字会与随机后缀连成一片
+    （412 + 156gfgy），直接取数字会误得 412156，进而被当作接口过滤条件导致空结果。
+    """
+    for pattern, source, text in (
+        (r"第\s*(\d+)\s*批", "公告页「第N批」", article_html),
+        (r"新产品公示\s*(\d+)", "列表页标题", list_html),
+        (r"xcpgs(\d+)", "列表页URL（兜底）", list_url),
+    ):
+        m = re.search(pattern, text or "")
+        if m:
+            return m.group(1), source
+    return "", "未识别"
+
+
 def fetch_all_list_rows(unit_url, query_data, page_size, retries, logger, batch=""):
     """分页拉取第一层全部列表；返回 (rows, list_page_url)。"""
     url = urljoin(BASE_URL, unit_url)
@@ -493,15 +512,8 @@ def run(argv=None):
     # ================= 第 3 步：识别批次号 =================
     step += 1
     log_step(logger, step, TOTAL_STEPS, "识别批次号")
-    batch = ""
-    m = re.search(r"xcpgs(\d+)", list_url)
-    if m:
-        batch = m.group(1)
-    else:
-        m = re.search(r"第\s*(\d+)\s*批", article_html)
-        if m:
-            batch = m.group(1)
-    logger.info("识别批次：%s", batch or "未知")
+    batch, batch_source = detect_batch(article_html, list_html, list_url)
+    logger.info("识别批次：%s（来源：%s）", batch or "未知", batch_source)
 
     # ================= 第 4 步：分页拉取第一层列表 =================
     step += 1
@@ -511,6 +523,13 @@ def run(argv=None):
         retries=args.retries, logger=logger, batch=batch,
     )
     logger.info("第一层列表共 %d 条", len(list_rows))
+    if not list_rows:
+        logger.error(
+            "第一层列表为 0 条，疑似批次号识别错误导致接口过滤无结果"
+            "（批次=%s，来源=%s）；已中止，避免写出空 CSV 掩盖问题。",
+            batch or "未知", batch_source,
+        )
+        return 1
 
     # ================= 第 5 步：并发抓取第二层详情页 =================
     step += 1
